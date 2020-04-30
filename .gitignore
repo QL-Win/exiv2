@@ -9,7 +9,10 @@
 .DS_Store
 .idea/*
 cmake-*
-build*
+
+build/*
+!build/*.bat
+
 asan_build*
 po/POTFILES
 po/remove-potcdate.sed

@@ -13,7 +13,7 @@ project(exiv2          # use TWEAK to categorize the build
 include(cmake/mainSetup.cmake  REQUIRED)
 
 # options and their default values
-option( BUILD_SHARED_LIBS             "Build exiv2lib as a shared library"                    ON  )
+option( BUILD_SHARED_LIBS             "Build exiv2lib as a shared library"                    OFF )
 option( EXIV2_ENABLE_XMP              "Build with XMP metadata support"                       ON  )
 option( EXIV2_ENABLE_EXTERNAL_XMP     "Use external version of XMP"                           OFF )
 option( EXIV2_ENABLE_PNG              "Build with png support (requires libz)"                ON  )
@@ -21,8 +21,8 @@ option( EXIV2_ENABLE_NLS              "Build native language support (requires g
 option( EXIV2_ENABLE_PRINTUCS2        "Build with Printucs2"                                  ON  )
 option( EXIV2_ENABLE_LENSDATA         "Build including lens data"                             ON  )
 option( EXIV2_ENABLE_VIDEO            "Build video support into library"                      OFF )
-option( EXIV2_ENABLE_DYNAMIC_RUNTIME  "Use dynamic runtime (used for static libs)"            ON  )
-option( EXIV2_ENABLE_WIN_UNICODE      "Use Unicode paths (wstring) on Windows"                OFF )
+option( EXIV2_ENABLE_DYNAMIC_RUNTIME  "Use dynamic runtime (used for static libs)"            OFF )
+option( EXIV2_ENABLE_WIN_UNICODE      "Use Unicode paths (wstring) on Windows"                ON  )
 option( EXIV2_ENABLE_WEBREADY         "Build webready support into library"                   OFF )
 option( EXIV2_ENABLE_CURL             "USE Libcurl for HttpIo (WEBREADY)"                     OFF )
 option( EXIV2_ENABLE_SSH              "USE Libssh for SshIo (WEBREADY)"                       OFF )

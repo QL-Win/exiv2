@@ -49,6 +49,15 @@ endforeach()
 
 ###################################
 
+add_library( exiv2-ql SHARED exiv2-ql.cpp)
+set_target_properties(exiv2-ql PROPERTIES
+  COMPILE_FLAGS ${EXTRA_COMPILE_FLAGS})
+list(APPEND APPLICATIONS exiv2-ql)
+target_include_directories(exiv2-ql PRIVATE ${CMAKE_SOURCE_DIR}/src) # To find unused.h
+install( TARGETS exiv2-ql RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+###################################
+
 if (MSVC)
     link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 endif()
