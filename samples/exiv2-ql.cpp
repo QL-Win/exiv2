@@ -34,7 +34,7 @@ void appendXML(std::ostringstream& s, const std::string& key, const std::string&
 	for (const auto& v : value)
 		s << escapeXML(v);
 
-	s << "<" << key << "/>" << std::endl;
+	s << "</" << key << ">" << std::endl;
 }
 
 std::string printTag(const Exiv2::ExifData& exifData, const std::string& key)
