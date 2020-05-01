@@ -10,6 +10,17 @@ typedef Exiv2::ExifData::const_iterator (*EasyAccessFct)(const Exiv2::ExifData& 
 
 #define EXPORT extern "C" __declspec(dllexport)
 
+bool isRotated(const Exiv2::ExifData& exifData)
+{
+	const auto key = exifData.findKey(Exiv2::ExifKey("Exif.Image.Orientation"));
+	if (key == exifData.end())
+		return false;
+
+	const auto o = key->value().toLong();
+
+	return o >= 5 && o <= 8;
+}
+
 std::string escapeXML(const std::string& str)
 {
 	std::ostringstream result;
@@ -66,9 +77,11 @@ std::string formatXML(const Exiv2::Image::AutoPtr& image, const Exiv2::ExifData&
 
 	result << "<Exif>" << std::endl;
 
-	appendXML(result, "_.MIME", "MIME Type", {image->mimeType()});
-	appendXML(result, "_.Size", "Image Size",
-	          {std::to_string(image->pixelWidth()), " x ", std::to_string(image->pixelHeight())});
+	appendXML(result, "_.MIME", "MIME Type", { image->mimeType() });
+
+	auto const rotated = isRotated(exifData);
+	appendXML(result, "_.Size.Width", "Image Width", { std::to_string(rotated ? image->pixelHeight() : image->pixelWidth()) });
+	appendXML(result, "_.Size.Height", "Image Height", { std::to_string(rotated ? image->pixelWidth() : image->pixelHeight()) });
 
 	if (!exifData.empty())
 	{
@@ -174,7 +187,7 @@ try
 
 	auto target = 0;
 	for (uint32_t i = 0; i < pvList.size(); i++)
-		if (pvList[i].height_ >= pvList[target].height_)
+		if (pvList[i].height_ >= pvList[target].height_ && (pvList[i].height_ <= 1920 || pvList[i].width_ <= 1920))
 			target = i;
 
 	const auto len = pvList[target].size_;
