@@ -14,10 +14,11 @@ class TestCvePoC(metaclass=system_tests.CaseMeta):
 File size       : 331696 Bytes
 MIME type       : image/tiff
 Image size      : 0 x 12336
+Thumbnail       : None
 Camera make     : 0000
 Camera model    : 0000000000000
 Image timestamp : 
-Image number    : 
+File number     : 
 Exposure time   : 
 Aperture        : 
 Exposure bias   : 
@@ -30,9 +31,7 @@ Exposure mode   :
 Metering mode   : 
 Macro mode      : 
 Image quality   : 
-Exif Resolution : 
 White balance   : 
-Thumbnail       : None
 Copyright       : 
 Exif comment    : 
 
@@ -43,7 +42,7 @@ Exif comment    :
 Warning: Directory Image, entry 0x0111: Strip 17 is outside of the data area; ignored.
 Error: Directory Photo with 8224 entries considered invalid; not read.
 Warning: Removing 913 characters from the beginning of the XMP packet
-Error: XMP Toolkit error 201: XML parsing failure
+Error: XMP Toolkit error 201: Error in XMLValidator
 Warning: Failed to decode XMP metadata.
 """
     ]

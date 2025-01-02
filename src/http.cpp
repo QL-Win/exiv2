@@ -1,6 +1,6 @@
 // ********************************************************* -*- C++ -*-
 /*
- * Copyright (C) 2004-2018 Exiv2 authors
+ * Copyright (C) 2004-2021 Exiv2 authors
  * This program is part of the Exiv2 distribution.
  *
  * This program is free software; you can redistribute it and/or
@@ -18,18 +18,12 @@
  * Foundation, Inc., 51 Franklin Street, 5th Floor, Boston, MA 02110-1301 USA.
  */
 
-/*
- * http.cpp
- */
-
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__CYGWIN__) || defined(__MINGW__) || defined(__MINGW64__) || defined(__MINGW32__) 
+#define __USE_W32_SOCKETS
 #include <winsock2.h>
-#pragma comment(lib, "ws2_32.lib")
 #endif
 
-// included header files
 #include "config.h"
-
 #include "datasets.hpp"
 #include "http.hpp"
 #include "futils.hpp"
@@ -50,11 +44,11 @@
 
 ////////////////////////////////////////
 // platform specific code
+
 #if defined(WIN32) || defined(_MSC_VER) || defined(__MINGW__)
 #include <string.h>
-#include <windows.h>
 #include <io.h>
-#ifndef  __MINGW__
+#if !defined(__MINGW__) && !defined(__CYGWIN__)
 #define  snprintf sprintf_s
 #define  write    _write
 #define  read     _read
@@ -210,7 +204,7 @@ int Exiv2::http(Exiv2::Dictionary& request,Exiv2::Dictionary& response,std::stri
 
     ////////////////////////////////////
     // Windows specific code
-#ifdef WIN32
+#if defined(WIN32) || defined(_MSC_VER) || defined(__MINGW__) || defined(__CYGWIN__)
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2,2), &wsaData);
 #endif
@@ -317,7 +311,7 @@ int Exiv2::http(Exiv2::Dictionary& request,Exiv2::Dictionary& response,std::stri
 
     ////////////////////////////////////
     // read and process the response
-    int err ;
+    int err = 0;
     n=forgive(recv(sockfd,buffer,(int)buff_l,0),err) ;
     while ( n >= 0 && OK(status) ) {
         if ( n ) {

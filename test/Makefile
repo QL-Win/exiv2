@@ -47,7 +47,7 @@ all: test
 top_srcdir = ..
 
 # Initialisations
-SHELL = /bin/sh
+SHELL = /bin/bash
 
 .SUFFIXES:
 
@@ -72,51 +72,39 @@ SVN    = svn://dev.exiv2.org/svn/testdata/trunk
 
 ##
 # Add test drivers to this list
-TESTS1 = addmoddel.sh         \
+TESTS =  addmoddel.sh         \
          conversions.sh       \
+         crw-test.sh          \
+         exifdata-test.sh     \
+         exiv2-test.sh        \
          geotag-test.sh       \
          icc-test.sh          \
-         iso65k-test.sh       \
-         modify-test.sh       \
-         path-test.sh         \
-         stringto-test.sh     \
-         webp-test.sh         \
-         write2-test.sh       \
-
-# the following tests are broken on UNIX
-# You can manually run all the tests: `cd <exiv2dir>/test ; env EXIV2_BINDIR=$PWD/../build/bin make test`
-# You can manually run a single test: `cd <exiv2dir>/test ; env EXIV2_BINDIR=$PWD/../build/bin ./iotest.sh`
-# Or: make iotest
-TESTS2 = exifdata-test.sh     \
-         exiv2-test.sh        \
          imagetest.sh         \
          iotest.sh            \
          iptctest.sh          \
+         iso65k-test.sh       \
+         nls-test.sh          \
+         modify-test.sh       \
+         path-test.sh         \
+         png-test.sh          \
          preview-test.sh      \
+         stdin-test.sh        \
+         stringto-test.sh     \
          tiff-test.sh         \
+         webp-test.sh         \
          write-test.sh        \
+         write2-test.sh       \
          xmpparser-test.sh
-
-# video tests
-TESTV  = video-test.sh
-TESTVW = write-video-test.sh
-
-# EPS tests
-TESTE  = eps-test.sh          \
-         eps-preview-test.sh
-
-# webready tests
-TESTX  = httpiotest.sh        \
-         curliotest.sh        \
-         sshiotest.sh
 
 addmoddel     \
 conversions   \
+crw-test      \
 geotag-test   \
 icc-test      \
 iso65k-test   \
 modify-test   \
 path-test     \
+png-test      \
 stringto-test \
 webp-test     \
 write2-test   \
@@ -125,6 +113,7 @@ exiv2-test    \
 imagetest     \
 iotest        \
 iptctest      \
+nls-test      \
 preview-test  \
 tiff-test     \
 write-test    \
@@ -136,30 +125,21 @@ xmpparser-test:
 
 version_test \
 unit_test    :
+	@echo
+	@echo ---- Running $@ ----
+	@echo
 	-@./$@.sh
 
-bash_tests:
-	-if [ -e $$EXIV2_BINDIR/../Makefile ]; then \
-	    -@./$@.sh ; \
-	else \
-	    make alltest ; \
-	fi
-
 tests:
-	-if [ -e $$EXIV2_BINDIR/../Makefile ]; then \
-	    -@./$@.sh ; \
-	else \
-	    make unit_test ; make alltest ; make python_tests ; make version_test ; \
-	fi
+	make unit_test  bash_tests  python_tests version_test
 
-
-alltest:
+bash_tests:
 	@echo
-	@echo ---- Running bash tests: ALL ----
+	@echo ---- Running bash_tests ----
 	@echo
-	mkdir -p tmp
+	@mkdir -p tmp
 	@rm -rf tmp/test-failed
-	@list='$(TESTS1) $(TESTS2)'; for p in $$list; do \
+	@list='$(TESTS)'; for p in $$list; do \
 	    echo Running $$p ...; \
 	    ./$$p;  \
 	    rc=$$?; \
@@ -168,79 +148,23 @@ alltest:
 	done
 	@if [ -e tmp/test-failed ]; then echo ; echo '***' FAILED ; cat tmp/test-failed ; echo '***' ; fi
 
-unixtest:
-	@echo
-	@echo ---- Running bash tests: UNIX subset ----
-	@echo
-	mkdir -p tmp
-	@rm -rf tmp/test-failed
-	@list='$(TESTS1)'; for p in $$list; do \
-	    echo Running $$p ...; \
-	    ./$$p;  \
-	    rc=$$?; \
-	    if [ $$rc -ne 0 ]; then echo '***' ; echo '***' $$p result = $$rc ; echo '***'       ; fi ; \
-	    if [ $$rc -ne 0 ]; then              echo '***' $$p result = $$rc >> tmp/test-failed ; fi ; \
-	done
-	@if [ -e tmp/test-failed ]; then echo '***' FAILED ; cat tmp/test-failed ; echo '***' ; fi
 
 python_tests:
-	-( cd ../tests ; python3 runner.py --verbose )
-
-
-testv:
-	@for t in /video ; do \
-		if [ ! -e data/$$t ]; then \
-	echo svn export '$(SVN)'$$t data$$t -r 3100 ; \
-	     svn export '$(SVN)'$$t data$$t -r 3100 ; \
-	fi ; done
-	@list='$(TESTV)'; for p in $$list; do \
-	    echo Running $$p ...; \
-	    ./$$p; \
-	done
-
-testvw:
-	@for t in /video ; do \
-		if [ ! -e data/$$t ]; then \
-	echo svn export '$(SVN)'$$t data$$t ; \
-	     svn export '$(SVN)'$$t data$$t ; \
-	fi ; done
-	@list='$(TESTVW)'; for p in $$list; do \
-	    echo Running $$p ...; \
-	    ./$$p; \
-	done
-
-teste:
-	@for t in /eps ; do \
-		if [ ! -e data/$$t ]; then \
-	echo svn export '$(SVN)'$$t data$$t ; \
-	     svn export '$(SVN)'$$t data$$t ; \
-	fi ; done
-	@list='$(TESTE)'; for p in $$list; do \
-	    echo Running $$p ...; \
-	    ./$$p; \
-	    rc=$$?; \
-	    if [ $$rc -ne 0 ]; then \
-		echo result = $$rc ; \
-		exit $$rc ; \
-		fi ; \
-	done
-
-testx:
-	@list='$(TESTX)'; for p in $$list; do \
-	    echo Running $$p ...; \
-	    ./$$p; \
-	done
+	@echo
+	@echo ---- Running python_tests ----
+	@echo
+	@echo bash -c 'cd ../tests; python3 runner.py'
+	@bash      -c 'cd ../tests; python3 runner.py'
 
 mostlyclean clean:
 	rm -rf $(top_srcdir)/test/tmp/*
 
 distclean: clean
-	$(RM) *~ *.bak *#
+	$(RM) *~ *.bak $(top_srcdir)/data/tmp
 
-# This command is intended for maintainers to use; it deletes files
-# that may need special tools to rebuild.
+# This command is intended for maintainers
 maintainer-clean: distclean
-	rm -rf $(top_srcdir)/data/video $(top_srcdir)/test/data/eps
+	rm -rf $(top_srcdir)/data/tmp
 
 # That's all Folks!
 ##

@@ -8,12 +8,12 @@ class CanonAfInfoTest(metaclass=CaseMeta):
     filenameB = path("$data_path/test_issue_981b.exv")
     filenameC = path("$data_path/test_issue_981c.exv")
     filenameD = path("$data_path/test_issue_981d.exv")
-    commands  = ["$exiv2 -pa --grep Canon.AF $filenameA",
-                 "$exiv2 -pa --grep Canon.AF $filenameB",
-                 "$exiv2 -pv --grep Points   $filenameC",
-                 "$exiv2 -pt --grep Points   $filenameC",
-                 "$exiv2 -pv --grep Unusable $filenameD",
-                 "$exiv2 -pt --grep Unusable $filenameD",
+    commands  = ["$exiv2 -pa -b --grep Canon.AF $filenameA",
+                 "$exiv2 -pa -b --grep Canon.AF $filenameB",
+                 "$exiv2 -pv -b --grep Points   $filenameC",
+                 "$exiv2 -pt -b --grep Points   $filenameC",
+                 "$exiv2 -pv -b --grep Unusable $filenameD",
+                 "$exiv2 -pt -b --grep Unusable $filenameD",
                 ]
 
     stdout = ["""Exif.Canon.AFInfo                            Short      48  96 2 9 9 4752 3168 4272 2848 115 115 115 162 200 162 115 115 115 153 153 153 105 199 105 153 153 153 64409 64862 64862 0 0 0 674 674 1127 0 321 65215 603 0 64933 321 65215 0 16 256 0 65535
@@ -48,6 +48,8 @@ Exif.Canon.AFYPositions                      SShort     63  547 625 625 625 625 
 Exif.Canon.AFPointsInFocus                   Short       4  25
 Exif.Canon.AFPointsSelected                  Short       4  25
 Exif.Canon.AFPointsUnusable                  Short       4  (none)
+Exif.Canon.AFMicroAdj                        Long       11  44 2 0 10 4294967295 0 10 0 10 0 10
+Exif.Canon.AFConfig                          Long       20  80 4 0 0 1 0 0 0 0 1 0 1 32639 1 0 1 0 0 0 2
 ""","""0x2602 Canon        AFNumPoints                 SShort      1  63
 0x2603 Canon        AFValidPoints               SShort      1  61
 0x260c Canon        AFPointsInFocus             Short       4  0 560 57344 0

@@ -69,7 +69,7 @@ fi
     grep x-default l.xmp
     copyTestFile $IMG l.jpg
     runTest exiv2 -iX l.jpg
-    runTest exiv2 -px l.jpg
+    runTest exiv2 -px -b l.jpg
     runTest exiv2 -PEkycv l.jpg
     runTest exiv2 -pi l.jpg
 
@@ -206,7 +206,7 @@ fi
     # evade this test on MSVC builds (Issue #485)
     platform=$(runTest exiv2 -vV 2>/dev/null | grep platform=)
     if [ "$platform" == "platform=windows" -o "$platform" == "platform=mingw64" -o "$platform" == "platform=msys" ]; then
-        runTest exiv2 -PEkycv v.jpg | sed -E -e 's#17 19:10:22#18 02:10:22#g'
+        runTest exiv2 -PEkycv v.jpg | sed -E -e 's#1. 1.:10:22#18 02:10:22#g'
     else
         runTest exiv2 -PEkycv v.jpg
     fi
@@ -223,11 +223,7 @@ fi
 
 ) > $results 2>&1
 
-# ----------------------------------------------------------------------
-# Evaluate results
-cat $results | tr -d $'\r' > $results-stripped
-mv                           $results-stripped $results
-reportTest                                     $results $good
+reportTest
 
 # That's all Folks!
 ##

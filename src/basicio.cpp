@@ -1,6 +1,6 @@
 // ***************************************************************** -*- C++ -*-
 /*
- * Copyright (C) 2004-2018 Exiv2 authors
+ * Copyright (C) 2004-2021 Exiv2 authors
  * This program is part of the Exiv2 distribution.
  *
  * This program is free software; you can redistribute it and/or
@@ -30,6 +30,7 @@
 #include "error.hpp"
 #include "http.hpp"
 #include "properties.hpp"
+#include "image_int.hpp"
 
 // + standard includes
 #include <string>
@@ -70,7 +71,7 @@
 # include <sys/xattr.h>
 #endif
 
-#if defined(__MINGW__) || (defined(WIN32) && !defined(__CYGWIN))
+#if defined(__MINGW__) || (defined(WIN32) && !defined(__CYGWIN__))
 // Windows doesn't provide nlink_t
 typedef short nlink_t;
 # include <windows.h>
@@ -80,7 +81,6 @@ typedef short nlink_t;
 // *****************************************************************************
 // class member definitions
 namespace Exiv2 {
-
     BasicIo::~BasicIo()
     {
     }
@@ -190,11 +190,11 @@ namespace Exiv2 {
         case opRead:
             // Flush if current mode allows reading, else reopen (in mode "r+b"
             // as in this case we know that we can write to the file)
-            if (openMode_[0] == 'r' || openMode_[1] == '+') reopen = false;
+            if (openMode_.at(0) == 'r' || openMode_.at(1) == '+') reopen = false;
             break;
         case opWrite:
             // Flush if current mode allows writing, else reopen
-            if (openMode_[0] != 'r' || openMode_[1] == '+') reopen = false;
+            if (openMode_.at(0) != 'r' || openMode_.at(1) == '+') reopen = false;
             break;
         case opSeek:
             reopen = false;
@@ -934,7 +934,7 @@ namespace Exiv2 {
     size_t FileIo::size() const
     {
         // Flush and commit only if the file is open for writing
-        if (p_->fp_ != 0 && (p_->openMode_[0] != 'r' || p_->openMode_[1] == '+')) {
+        if (p_->fp_ != 0 && (p_->openMode_.at(0) != 'r' || p_->openMode_.at(1) == '+')) {
             std::fflush(p_->fp_);
 #if defined WIN32 && !defined __CYGWIN__
             // This is required on msvcrt before stat after writing to a file
@@ -1301,7 +1301,7 @@ namespace Exiv2 {
         if (newIdx < 0)
             return 1;
 
-        if (static_cast<size_t>(newIdx) > p_->size_) {
+        if (newIdx > p_->size_) {
             p_->eof_ = true;
             return 1;
         }
@@ -1384,7 +1384,9 @@ namespace Exiv2 {
     {
         long avail = EXV_MAX(p_->size_ - p_->idx_, 0);
         long allow = EXV_MIN(rcount, avail);
-        std::memcpy(buf, &p_->data_[p_->idx_], allow);
+        if (allow > 0) {
+          std::memcpy(buf, &p_->data_[p_->idx_], allow);
+        }
         p_->idx_ += allow;
         if (rcount > avail) p_->eof_ = true;
         return allow;
@@ -1800,9 +1802,10 @@ namespace Exiv2 {
 
         // find $right
         findDiff    = false;
-        blockIndex  = nBlocks - 1;
-        blockSize   = p_->blocksMap_[blockIndex].getSize();
-        while ((blockIndex + 1 > 0) && right < src.size() && !findDiff) {
+        blockIndex  = nBlocks;
+        while (blockIndex > 0 && right < src.size() && !findDiff) {
+            blockIndex--;
+            blockSize = p_->blocksMap_[blockIndex].getSize();
             if(src.seek(-1 * (blockSize + right), BasicIo::end)) {
                 findDiff = true;
             } else {
@@ -1817,8 +1820,6 @@ namespace Exiv2 {
                     }
                 }
             }
-            blockIndex--;
-            blockSize = (long)p_->blocksMap_[blockIndex].getSize();
         }
 
         // free buf
@@ -1960,8 +1961,9 @@ namespace Exiv2 {
             for ( size_t block = 0 ; block < blocks ; block ++ ) {
                 void* p = p_->blocksMap_[block].getData();
                 if  ( p ) {
-                    nRealData += blockSize ;
-                    memcpy(bigBlock_+(block*blockSize),p,blockSize);
+                    size_t nRead = block==(blocks-1)?p_->size_-nRealData:blockSize;
+                    memcpy(bigBlock_+(block*blockSize),p,nRead);
+                    nRealData   += nRead ;
                 }
             }
 #ifdef EXIV2_DEBUG_MESSAGES
@@ -2098,9 +2100,9 @@ namespace Exiv2 {
         request["page"  ] = hostInfo_.Path;
         if (hostInfo_.Port != "") request["port"] = hostInfo_.Port;
         request["verb"]   = "HEAD";
-        long serverCode = (long)http(request, response, errors);
+        int serverCode = http(request, response, errors);
         if (serverCode < 0 || serverCode >= 400 || errors.compare("") != 0) {
-            throw Error(kerTiffDirectoryTooLarge, "Server", serverCode);
+            throw Error(kerFileOpenFailed, "http",Exiv2::Internal::stringFormat("%d",serverCode), hostInfo_.Path);
         }
 
         Exiv2::Dictionary_i lengthIter = response.find("Content-Length");
@@ -2122,9 +2124,9 @@ namespace Exiv2 {
             request["header"] = ss.str();
         }
 
-        long serverCode = (long)http(request, responseDic, errors);
+        int serverCode = http(request, responseDic, errors);
         if (serverCode < 0 || serverCode >= 400 || errors.compare("") != 0) {
-            throw Error(kerTiffDirectoryTooLarge, "Server", serverCode);
+            throw Error(kerFileOpenFailed, "http",Exiv2::Internal::stringFormat("%d",serverCode), hostInfo_.Path);
         }
         response = responseDic["body"];
     }
@@ -2132,7 +2134,7 @@ namespace Exiv2 {
     void HttpIo::HttpImpl::writeRemote(const byte* data, size_t size, long from, long to)
     {
         std::string scriptPath(getEnv(envHTTPPOST));
-        if (scriptPath == "") {
+        if (scriptPath.empty()) {
             throw Error(kerErrorMessage, "Please set the path of the server script to handle http post data to EXIV2_HTTP_POST environmental variable.");
         }
 
@@ -2176,7 +2178,7 @@ namespace Exiv2 {
 
         int serverCode = http(request, response, errors);
         if (serverCode < 0 || serverCode >= 400 || errors.compare("") != 0) {
-            throw Error(kerTiffDirectoryTooLarge, "Server", serverCode);
+            throw Error(kerFileOpenFailed, "http",Exiv2::Internal::stringFormat("%d",serverCode), hostInfo_.Path);
         }
     }
     HttpIo::HttpIo(const std::string& url, size_t blockSize)
@@ -2305,11 +2307,11 @@ namespace Exiv2 {
         if(res != CURLE_OK) { // error happends
             throw Error(kerErrorMessage, curl_easy_strerror(res));
         }
-        // get return code
-        long returnCode;
-        curl_easy_getinfo (curl_, CURLINFO_RESPONSE_CODE, &returnCode); // get code
-        if (returnCode >= 400 || returnCode < 0) {
-            throw Error(kerTiffDirectoryTooLarge, "Server", returnCode);
+        // get status
+        int serverCode;
+        curl_easy_getinfo (curl_, CURLINFO_RESPONSE_CODE, &serverCode); // get code
+        if (serverCode >= 400 || serverCode < 0) {
+            throw Error(kerFileOpenFailed, "http",Exiv2::Internal::stringFormat("%d",serverCode),path_);
         }
         // get length
         double temp;
@@ -2343,10 +2345,10 @@ namespace Exiv2 {
         if(res != CURLE_OK) {
             throw Error(kerErrorMessage, curl_easy_strerror(res));
         } else {
-            long serverCode;
+            int serverCode;
             curl_easy_getinfo (curl_, CURLINFO_RESPONSE_CODE, &serverCode); // get code
             if (serverCode >= 400 || serverCode < 0) {
-                throw Error(kerTiffDirectoryTooLarge, "Server", serverCode);
+                throw Error(kerFileOpenFailed, "http",Exiv2::Internal::stringFormat("%d",serverCode),path_);
             }
         }
     }
@@ -2395,10 +2397,10 @@ namespace Exiv2 {
         if(res != CURLE_OK) {
             throw Error(kerErrorMessage, curl_easy_strerror(res));
         } else {
-            long serverCode;
+            int serverCode;
             curl_easy_getinfo (curl_, CURLINFO_RESPONSE_CODE, &serverCode);
             if (serverCode >= 400 || serverCode < 0) {
-                throw Error(kerTiffDirectoryTooLarge, "Server", serverCode);
+                throw Error(kerFileOpenFailed, "http",Exiv2::Internal::stringFormat("%d",serverCode),path_);
             }
         }
     }

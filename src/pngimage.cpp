@@ -1,6 +1,6 @@
 // ***************************************************************** -*- C++ -*-
 /*
- * Copyright (C) 2004-2018 Exiv2 authors
+ * Copyright (C) 2004-2021 Exiv2 authors
  * This program is part of the Exiv2 distribution.
  *
  * This program is free software; you can redistribute it and/or
@@ -16,9 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, 5th Floor, Boston, MA 02110-1301 USA.
- */
-/*
-  File:    pngimage.cpp
  */
 // *****************************************************************************
 // included header files
@@ -62,7 +59,11 @@ namespace
     inline bool compare(const char* str, const Exiv2::DataBuf& buf, size_t length)
     {
         assert(strlen(str) <= length);
-        return memcmp(str, buf.pData_, std::min(static_cast<long>(length), buf.size_)) == 0;
+        const long minlen = std::min(static_cast<long>(length), buf.size_);
+        if (minlen == 0) {
+          return true;
+        }
+        return memcmp(str, buf.pData_, minlen) == 0;
     }
 }  // namespace
 
@@ -229,7 +230,6 @@ namespace Exiv2 {
             const std::string exifKey = "Raw profile type exif";
             const std::string app1Key = "Raw profile type APP1";
             const std::string iptcKey = "Raw profile type iptc";
-            const std::string iccKey  = "icc";
             const std::string softKey = "Software";
             const std::string commKey = "Comment";
             const std::string descKey = "Description";
@@ -304,53 +304,57 @@ namespace Exiv2 {
                 bool zTXt  = std::strcmp(chType,"zTXt")== 0;
                 bool iCCP  = std::strcmp(chType,"iCCP")== 0;
                 bool iTXt  = std::strcmp(chType,"iTXt")== 0;
+                bool eXIf  = std::strcmp(chType,"eXIf")== 0;
 
                 // for XMP, ICC etc: read and format data
                 bool bXMP  = option == kpsXMP        && findi(dataString,xmpKey)==0;
-                bool bICC  = option == kpsIccProfile && findi(dataString,iccKey)==0;
                 bool bExif = option == kpsRecursive  &&(findi(dataString,exifKey)==0 || findi(dataString,app1Key)==0);
                 bool bIptc = option == kpsRecursive  && findi(dataString,iptcKey)==0;
                 bool bSoft = option == kpsRecursive  && findi(dataString,softKey)==0;
                 bool bComm = option == kpsRecursive  && findi(dataString,commKey)==0;
                 bool bDesc = option == kpsRecursive  && findi(dataString,descKey)==0;
-                bool bDump = bXMP || bICC || bExif || bIptc || bSoft || bComm || bDesc ;
+                bool bDump = bXMP || bExif || bIptc || bSoft || bComm || bDesc || iCCP || eXIf ;
 
                 if( bDump ) {
                     DataBuf   dataBuf;
-                    byte*     data   = new byte[dataOffset+1];
-                    data[dataOffset] = 0;
-                    bufRead = io_->read(data,dataOffset);
+                    enforce(static_cast<uint64_t>(dataOffset) < static_cast<unsigned long>(std::numeric_limits<long>::max()), kerFailedToReadImageData);
+                    DataBuf data(static_cast<long>(dataOffset) + 1);
+                    data.pData_[dataOffset] = 0;
+                    bufRead = io_->read(data.pData_, static_cast<long>(dataOffset));
                     enforce(bufRead == static_cast<long>(dataOffset), kerFailedToReadImageData);
                     io_->seek(restore, BasicIo::beg);
-                    uint32_t  name_l = (uint32_t) std::strlen((const char*)data)+1; // leading string length
-                    enforce(name_l <= dataOffset, kerCorruptedMetadata);
+                    size_t name_l = std::strlen((const char*)data.pData_)+1; // leading string length
+                    enforce(name_l < dataOffset, kerCorruptedMetadata);
 
-                    uint32_t  start  = name_l;
+                    uint32_t  start  = static_cast<uint32_t>(name_l);
                     bool      bLF    = false;
 
                     // decode the chunk
                     bool bGood = false;
                     if ( tEXt ) {
-                        bGood = tEXtToDataBuf(data+name_l,dataOffset-name_l,dataBuf);
+                        bGood = tEXtToDataBuf(data.pData_ + name_l, static_cast<unsigned long>(dataOffset - name_l), dataBuf);
                     }
                     if ( zTXt || iCCP ) {
-                        bGood = zlibToDataBuf(data+name_l+1,dataOffset-name_l-1,dataBuf); // +1 = 'compressed' flag
+                        bGood = zlibToDataBuf(data.pData_ + name_l + 1, static_cast<unsigned long>(dataOffset - name_l - 1), dataBuf); // +1 = 'compressed' flag
                     }
                     if ( iTXt ) {
-                        bGood = (start+3) < dataOffset ;    // good if not a nul chunk
+                        bGood = (3 <= dataOffset) && (start < dataOffset-3); // good if not a nul chunk
+                    }
+                    if ( eXIf ) {
+                        bGood = true ;// eXIf requires no pre-processing)
                     }
 
                     // format is content dependent
                     if ( bGood ) {
                         if ( bXMP ) {
-                            while ( !data[start] && start < dataOffset) start++; // skip leading nul bytes
-                            out <<  data+start;             // output the xmp
+                            while (start < dataOffset && !data.pData_[start]) start++; // skip leading nul bytes
+                            out <<  data.pData_ + start;             // output the xmp
                         }
 
                         if ( bExif || bIptc ) {
                             DataBuf parsedBuf = PngChunk::readRawProfile(dataBuf,tEXt);
 #if EXIV2_DEBUG_MESSAGES
-                            std::cerr << Exiv2::Internal::binaryToString(parsedBuf.pData_, parsedBuf.size_>50?50:parsedBuf.size_,0) << std::endl;
+                            std::cerr << Exiv2::Internal::binaryToString(makeSlice(parsedBuf.pData_, parsedBuf.size_>50?50:parsedBuf.size_,0)) << std::endl;
 #endif
                             if ( parsedBuf.size_ ) {
                                 if ( bExif ) {
@@ -373,7 +377,7 @@ namespace Exiv2 {
                             bLF=true;
                         }
 
-                        if ( bICC || bComm ) {
+                        if ( ( iCCP && option == kpsIccProfile ) || bComm ) {
                             out.write((const char*) dataBuf.pData_,dataBuf.size_);
                             bLF = bComm ;
                         }
@@ -384,9 +388,14 @@ namespace Exiv2 {
                             bLF = true;
                         }
 
+                        if ( eXIf && option == kpsRecursive ) {
+                            // create memio object with the data, then print the structure
+                            BasicIo::AutoPtr p = BasicIo::AutoPtr(new MemIo(data.pData_, dataOffset));
+                            printTiffStructure(*p,out,option,depth);
+                        }
+
                         if ( bLF ) out << std::endl;
                     }
-                    delete[] data;
                 }
                 io_->seek(dataOffset+4, BasicIo::cur);// jump past checksum
                 if (io_->error()) throw Error(kerFailedToReadImageData);
@@ -448,8 +457,11 @@ namespace Exiv2 {
 
             /// \todo analyse remaining chunks of the standard
             // Perform a chunk triage for item that we need.
-            if (chunkType == "IEND" || chunkType == "IHDR" || chunkType == "tEXt" || chunkType == "zTXt" ||
-                chunkType == "iTXt" || chunkType == "iCCP") {
+            if(chunkType == "IEND" || chunkType == "IHDR"
+            || chunkType == "tEXt" || chunkType == "zTXt"
+            || chunkType == "eXIf"
+            || chunkType == "iTXt" || chunkType == "iCCP"
+            ){
                 DataBuf chunkData(chunkLength);
                 readChunk(chunkData, *io_);  // Extract chunk data.
 
@@ -463,6 +475,13 @@ namespace Exiv2 {
                     PngChunk::decodeTXTChunk(this, chunkData, PngChunk::zTXt_Chunk);
                 } else if (chunkType == "iTXt") {
                     PngChunk::decodeTXTChunk(this, chunkData, PngChunk::iTXt_Chunk);
+                } else if (chunkType == "eXIf") {
+                    ByteOrder bo = TiffParser::decode(exifData(),
+                                                      iptcData(),
+                                                      xmpData(),
+                                                      chunkData.pData_,
+                                                      chunkData.size_);
+                    setByteOrder(bo);
                 } else if (chunkType == "iCCP") {
                     // The ICC profile name can vary from 1-79 characters.
                     uint32_t iccOffset = 0;
@@ -540,9 +559,9 @@ namespace Exiv2 {
             // Read chunk header.
 
             std::memset(cheaderBuf.pData_, 0x00, cheaderBuf.size_);
-            long bufRead = io_->read(cheaderBuf.pData_, cheaderBuf.size_);
+            long bufRead = io_->read(cheaderBuf.pData_, 8);
             if (io_->error()) throw Error(kerFailedToReadImageData);
-            if (bufRead != cheaderBuf.size_) throw Error(kerInputDataReadFailed);
+            if (bufRead != 8) throw Error(kerInputDataReadFailed);
 
             // Decode chunk data length.
 
@@ -551,7 +570,7 @@ namespace Exiv2 {
 
             // Read whole chunk : Chunk header + Chunk data (not fixed size - can be null) + CRC (4 bytes).
 
-            DataBuf chunkBuf(8 + dataOffset + 4);                     // Chunk header (8 bytes) + Chunk data + CRC (4 bytes).
+            DataBuf chunkBuf(8 + dataOffset + 4);  // Chunk header (8 bytes) + Chunk data + CRC (4 bytes).
             memcpy(chunkBuf.pData_, cheaderBuf.pData_, 8);            // Copy header.
             bufRead = io_->read(chunkBuf.pData_ + 8, dataOffset + 4); // Extract chunk data + CRC
             if (io_->error()) throw Error(kerFailedToReadImageData);
@@ -561,16 +580,26 @@ namespace Exiv2 {
             memcpy(szChunk,cheaderBuf.pData_ + 4,4);
             szChunk[4]  = 0;
 
-            if (!memcmp(cheaderBuf.pData_ + 4, "IEND", 4))
+            if ( !strcmp(szChunk,"IEND") )
             {
                 // Last chunk found: we write it and done.
 #ifdef EXIV2_DEBUG_MESSAGES
                 std::cout << "Exiv2::PngImage::doWriteMetadata: Write IEND chunk (length: " << dataOffset << ")\n";
 #endif
-                if (outIo.write(chunkBuf.pData_, chunkBuf.size_) != chunkBuf.size_) throw Error(kerImageWriteFailed);
+                if (outIo.write(chunkBuf.pData_, chunkBuf.size_) != chunkBuf.size_)
+                    throw Error(kerImageWriteFailed);
                 return;
             }
-            else if (!memcmp(cheaderBuf.pData_ + 4, "IHDR", 4))
+            else if ( !strcmp(szChunk, "eXIf") || !strcmp(szChunk, "iCCP") ) {
+                // do nothing (strip): Exif metadata is written following IHDR
+                // as zTXt chunk with signature "Raw profile type exif",
+                // together with the ICC profile as a fresh iCCP chunk
+#ifdef EXIV2_DEBUG_MESSAGES
+                std::cout << "Exiv2::PngImage::doWriteMetadata: strip " << szChunk
+                            << " chunk (length: " << dataOffset << ")" << std::endl;
+#endif
+            }
+            else if ( !strcmp(szChunk, "IHDR")  )
             {
 #ifdef EXIV2_DEBUG_MESSAGES
                 std::cout << "Exiv2::PngImage::doWriteMetadata: Write IHDR chunk (length: " << dataOffset << ")\n";
@@ -672,10 +701,9 @@ namespace Exiv2 {
                     }
                 }
             }
-            else if (!memcmp(cheaderBuf.pData_ + 4, "tEXt", 4) ||
-                     !memcmp(cheaderBuf.pData_ + 4, "zTXt", 4) ||
-                     !memcmp(cheaderBuf.pData_ + 4, "iTXt", 4) ||
-                     !memcmp(cheaderBuf.pData_ + 4, "iCCP", 4))
+            else if (!strcmp(szChunk, "tEXt") ||
+                     !strcmp(szChunk, "zTXt") ||
+                     !strcmp(szChunk, "iTXt"))
             {
                 DataBuf key = PngChunk::keyTXTChunk(chunkBuf, true);
                 if (compare("Raw profile type exif", key, 21) ||
@@ -683,8 +711,6 @@ namespace Exiv2 {
                     compare("Raw profile type iptc", key, 21) ||
                     compare("Raw profile type xmp",  key, 20) ||
                     compare("XML:com.adobe.xmp",     key, 17) ||
-                    compare("icc",                   key,  3) || // see test/data/imagemagick.png
-                    compare("ICC",                   key,  3) ||
                     compare("Description",           key, 11))
                 {
 #ifdef EXIV2_DEBUG_MESSAGES

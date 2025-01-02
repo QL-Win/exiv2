@@ -1,3 +1,7 @@
+| Travis        | AppVeyor      | GitLab| Codecov| Repology| Chat |
+|:-------------:|:-------------:|:-----:|:------:|:-------:|:----:|
+| [![Build Status](https://travis-ci.org/Exiv2/exiv2.svg?branch=0.27-maintenance)](https://travis-ci.org/Exiv2/exiv2) | [![Build status](https://ci.appveyor.com/api/projects/status/d6vxf2n0cp3v88al/branch/0.27-maintenance?svg=true)](https://ci.appveyor.com/project/piponazo/exiv2-wutfp/branch/0.27-maintenance) | [![pipeline status](https://gitlab.com/D4N/exiv2/badges/0.27-maintenance/pipeline.svg)](https://gitlab.com/D4N/exiv2/commits/0.27-maintenance) | [![codecov](https://codecov.io/gh/Exiv2/exiv2/branch/0.27-maintenance/graph/badge.svg)](https://codecov.io/gh/Exiv2/exiv2) | [![Packaging status](https://repology.org/badge/tiny-repos/exiv2.svg)](https://repology.org/metapackage/exiv2/versions) | [![#exiv2-chat on matrix.org](matrix-standard-vector-logo-xs.png)](https://matrix.to/#/#exiv2-chat:matrix.org) |
+
 ![Exiv2](exiv2.png)
 
 # Exiv2 Sample Applications
@@ -9,6 +13,8 @@ Exiv2 is a C++ library and a command line utility to read, write, delete and mod
 <div id="TOC1">
 
 ### Sample Programs
+
+The following programs are build and installed in /usr/local/bin.
 
 | Name | Purpose | More information | Code |
 |:---  |:---  |:---              |:-- |
@@ -24,6 +30,8 @@ Exiv2 is a C++ library and a command line utility to read, write, delete and mod
 | _**iptcprint**_   | Demonstrates Exiv2 library APIs to print Iptc data | [iptceasy](#iptceasy) | [iptcprint.cpp](samples/iptcprint.cpp) |
 | _**metacopy**_    | Demonstrates copying metadata from one image to another | [metacopy](#metacopy) | [metacopy.cpp](samples/metacopy.cpp) |
 | _**mrwthumb**_    | Sample program to extract a Minolta thumbnail from the makernote | [mrwthumb](#mrwthumb) | [mrwthumb.cpp](samples/mrwthumb.cpp) |
+| _**taglist**_     | Print a simple comma separated list of tags defined in Exiv2 | [taglist](#taglist) |
+| _**xmpdump**_     | Sample program to dump the XMP packet of an image | [xmpdump](#xmpdump) |
 | _**xmpparse**_    | Read an XMP packet from a file, parse it and print all (known) properties. | [xmpparse](#xmpparse) | [xmpparse.cpp](samples/xmpparse.cpp) |
 | _**xmpprint**_    | Read an XMP from a file, parse it and print all (known) properties.. | [xmpprint](#xmpprint) | [xmpprint.cpp](samples/xmpprint.cpp) |
 | _**xmpsample**_   | Demonstrates Exiv2 library high level XMP classes | [xmpsample](#xmpsample) | [xmpsample.cpp](samples/exmpsample.cpp) |
@@ -34,7 +42,7 @@ Exiv2 is a C++ library and a command line utility to read, write, delete and mod
 
 ### Test Programs
 
-As Exiv2 is open source, we publish all our materials.  Some of the following programs are actively used in our test harness.  Some of the following programs were written during the development of features and their on-going use may be limited, or even obsolete.  In general these programs are published as source and Team Exiv2 will not provide support to users.
+As Exiv2 is open source, we publish all our materials.  The following programs are actively used in our test harness.  Some were written during feature development of features and their on-going use may be limited, or even obsolete.  In general these programs are published as source and Team Exiv2 will not provide support to users.
 
 | Name | Kind | More information |
 |:---  |:---  |:---              |
@@ -52,13 +60,11 @@ As Exiv2 is open source, we publish all our materials.  Some of the following pr
 | _**prevtest**_ | Test access to preview images | [prevtest](#prevtest) |
 | _**remotetest**_ | Tester application for testing remote i/o. | [remotetest](#remotetest) |
 | _**stringto-test**_ | Test conversions from string to long, float and Rational types. | [stringto-test](#stringto-test) |
-| _**taglist**_ | Print a simple comma separated list of tags defined in Exiv2 | [taglist](#taglist) |
 | _**tiff-test**_ | Simple TIFF write test | [tiff-test](#tiff-test) |
 | _**werror-test**_ | Simple tests for the wide-string error class WError | [werror-test](#werror-test) |
 | _**write-test**_ | ExifData write unit tests | [write-test](#write-test) |
 | _**write2-test**_ | ExifData write unit tests for Exif data created from scratch | [write2-test](#write2-test) |
-| _**xmpdump**_ | Sample program to dump the XMP packet of an image | [xmpdump](#xmpdump) |
-| _**xmpparser-test**_ | Read an XMP packet from a file, parse and re-serialize it. | [xmpparser-test](#xmpparser-test) |
+| _**xmpparser-test**_ | Read an XMP packet from a file, parse and re-serialize it. | [xmpparser-test](#xmpparser-test)|
 
 [Sample](#TOC1) Programs [Test](#TOC2) Programs
 
@@ -106,16 +112,16 @@ This is a simple program to demonstrate dumping _**Exif**_ metadata in common fo
 #### exifprint
 
 ```
-Usage: exifprint [ file | --version | --version-test ]
+Usage: exifprint [ path | --version | --version-test ]
 ```
 
 | Arguments | Description |
 |:--        |:---  |
-| file    | Path to image |
+| path    | Path to image |
 | --version     | Print version information from build |
 | --version-test   | Tests Exiv2 VERSION API |
 
-This program demonstrates how to print _**Exif**_ metadata in an image.  This program is also discussed in the platform ReadMe.txt file included in a build bundle.  The option **--version** was added enable the user to build a test application which dumps the build information.  The option **--version-test** was added to test the macro EXIV2\_TEST\_VERSION() in **include/exiv2/version.hpp**.
+This program demonstrates how to print _**Exif**_ metadata in an image.  This program is also discussed in the platform ReadMe.txt file included in a build bundle.  The option **--version** was added to enable the user to build a test application which dumps the build information.  The option **--version-test** was added to test the macro EXIV2\_TEST\_VERSION() in **include/exiv2/version.hpp**.
 
 There is one other unique feature of this program.  It is the only test/sample program which can use the EXV\_UNICODE\_PATH build feature of Exiv2 on Windows.
 
@@ -204,13 +210,16 @@ If the path is a directory, geotag will read all the files in the directory.  It
 
 | Arguments | Description |
 |:--        |:---  |
-| -ascii    | Output in ascii (not UTF8).  Prints `deg` instead of &deg;. |
+| -help     | print usage statement |
+| -version  | prints data and time of compiling geotag.cpp |
 | -dst      | Apply 1 hour adjustment for daylight saving time. |
 | -dryrun   | Read arguments and print report.  Does not modify images. |
+| -ascii    | Output in ascii (not UTF8).  Prints `deg` instead of &deg;. |
 | -verbose  | Report progress. |
 | -adjust  value | Add/subtract time from image data. |
 | -tz      value | Specify time zone. For example PST = -8:00 |
 | -delta   value | Correction between Image DataTime and GPS time. |
+| path+ | One or more directories, image paths or gpx paths.  Directories are searched for gpx and images |
 
 I use this program frequently.  I have a little Canon camera which I take when I run.  My Samsung Galaxy Watch uploads my runs to Strava and I download the GPX.  If I'm in another time-zone and have forgotten to change the time setting in the camera, I use `-adjust` to alter the images.  The GPX time is always correct, however the camera is normally off by seconds or minutes.  This option enables you to correct for inaccuracy in the setting of the camera time.
 
@@ -247,7 +256,7 @@ Demonstrates Exiv2 library APIs to print Iptc data. _Code: [iptcprint.cpp](sampl
 #### metacopy
 
 ```
-Usage: metacopy [-iecaph] readfile writefile
+Usage: metacopy [-iecxaph] readfile writefile
 Reads and writes raw metadata. Use -h option for help.
 ```
 
@@ -372,8 +381,12 @@ This program is used to test reading the file ini-test.  This program was added 
 #### iotest
 
 ```
-Usage: iotest filein fileout1 fileout2
-fileouts are overwritten and should match filein exactly
+Usage: iotest filein fileout1 fileout2 [remote [blocksize]]
+copy filein to fileout1 and copy filein to fileout2
+fileout1 and fileout2 are overwritten and should match filein exactly
+
+You may optionally provide the URL of a remote file to be copied to filein
+If you use `remote`, you may optionally provide a blocksize for the copy buffer (default 10k)
 ```
 
 Test programs for BasicIo functions.
@@ -643,4 +656,4 @@ Read an XMP packet from a file, parse and re-serialize it.
 
 Robin Mills<br>
 robin@clanmills.com<br>
-Revised: 2019-06-20
+Revised: 2020-11-20

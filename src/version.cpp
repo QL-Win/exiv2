@@ -1,6 +1,6 @@
 // ***************************************************************** -*- C++ -*-
 /*
- * Copyright (C) 2004-2018 Exiv2 authors
+ * Copyright (C) 2004-2021 Exiv2 authors
  * This program is part of the Exiv2 distribution.
  *
  * This program is free software; you can redistribute it and/or
@@ -74,6 +74,7 @@
 # include <sys/socket.h>
 # include <sys/sysctl.h>
 # include <libprocstat.h>
+# include <unistd.h>
 #elif defined(__sun__)
 # include <dlfcn.h>
 # include <link.h>
@@ -90,7 +91,6 @@ namespace Exiv2 {
         std::ostringstream os;
         os << EXIV2_MAJOR_VERSION << '.' << EXIV2_MINOR_VERSION << '.' << EXIV2_PATCH_VERSION;
         return os.str();
-
     }
 
     std::string versionNumberHexString()
@@ -185,21 +185,24 @@ static Exiv2::StringVector getLoadedLibraries()
         pushPath(path,libs,paths);
     }
 #elif defined(__FreeBSD__)
-    unsigned int n;
-    struct procstat*      procstat = procstat_open_sysctl();
-    struct kinfo_proc*    procs    = procstat ? procstat_getprocs(procstat, KERN_PROC_PID, getpid(), &n) : NULL;
-    struct filestat_list* files    = procs    ? procstat_getfiles(procstat, procs, true)                 : NULL;
-    if ( files ) {
-        filestat* entry;
-        STAILQ_FOREACH(entry, files, next) {
-            std::string path(entry->fs_path);
-            pushPath(path,libs,paths);
+    // this code seg-faults when called from an SSH script! (security?)
+    if ( isatty(STDIN_FILENO) ) {
+        unsigned int n;
+        struct procstat*      procstat = procstat_open_sysctl();
+        struct kinfo_proc*    procs    = procstat ? procstat_getprocs(procstat, KERN_PROC_PID, getpid(), &n) : NULL;
+        struct filestat_list* files    = procs    ? procstat_getfiles(procstat, procs, true)                 : NULL;
+        if ( files ) {
+            filestat* entry;
+            STAILQ_FOREACH(entry, files, next) {
+                std::string path(entry->fs_path);
+                pushPath(path,libs,paths);
+            }
         }
+        // free resources
+        if ( files    ) procstat_freefiles(procstat, files);
+        if ( procs    ) procstat_freeprocs(procstat, procs);
+        if ( procstat ) procstat_close    (procstat);
     }
-    // free resources
-    if ( files    ) procstat_freefiles(procstat, files);
-    if ( procs    ) procstat_freeprocs(procstat, procs);
-    if ( procstat ) procstat_close    (procstat);
 #elif defined (__sun__) || defined(__unix__)
     // http://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux
     char procsz[100];
@@ -210,8 +213,6 @@ static Exiv2::StringVector getLoadedLibraries()
         pathsz[l]='\0';
         path.assign(pathsz);
         libs.push_back(path);
-    } else {
-		libs.push_back("unknown");
     }
 
     // read file /proc/self/maps which has a list of files in memory
@@ -259,7 +260,7 @@ void Exiv2::dumpLibraryInfo(std::ostream& os,const exv_grep_keys_t& keys)
     size_t      edition       = (_MSC_VER-600)/100;
     const char* editions[]    = { "0","1","2","3","4","5","6","2003", "2005", "2008", "2010", "2012","2013","2015","2017","2019"};
     if (  edition == 13 && _MSC_VER >= 1910 ) edition++ ; // 2017 _MSC_VAR  == 1910
-    if (  edition == 13 && _MSC_VER >= 1920 ) edition++ ; // 2019 _MSC_VAR  == 1920
+    if (  edition == 14 && _MSC_VER >= 1920 ) edition++ ; // 2019 _MSC_VAR  == 1920
 
     if  ( edition > lengthof(editions) ) edition = 0 ;
     if  ( edition ) sprintf(version+::strlen(version)," (%s/%s)",editions[edition],bits==64?"x64":"x86");
@@ -315,7 +316,6 @@ void Exiv2::dumpLibraryInfo(std::ostream& os,const exv_grep_keys_t& keys)
     "unknown";
 #endif
 
-    int have_gmtime_r    =0;
     int have_inttypes    =0;
     int have_libintl     =0;
     int have_lensdata    =0;
@@ -344,15 +344,12 @@ void Exiv2::dumpLibraryInfo(std::ostream& os,const exv_grep_keys_t& keys)
     int have_unistd      =0;
     int have_unicode_path=0;
 
+    int enable_bmff      =0;
     int enable_video     =0;
     int enable_webready  =0;
     int enable_nls       =0;
     int use_curl         =0;
     int use_ssh          =0;
-
-#ifdef EXV_HAVE_GMTIME_R
-    have_gmtime_r=1;
-#endif
 
 #ifdef EXV_HAVE_INTTYPES_H
     have_inttypes=1;
@@ -394,9 +391,7 @@ void Exiv2::dumpLibraryInfo(std::ostream& os,const exv_grep_keys_t& keys)
     have_stdbool=1;
 #endif
 
-#ifdef EXV_HAVE_STDINT_H
     have_stdint=1;
-#endif
 
 #ifdef EXV_HAVE_STDLIB_H
     have_stdlib=1;
@@ -466,6 +461,10 @@ void Exiv2::dumpLibraryInfo(std::ostream& os,const exv_grep_keys_t& keys)
      have_unicode_path=1;
 #endif
 
+#ifdef EXV_ENABLE_BMFF
+     enable_bmff=1;
+#endif
+
 #ifdef EXV_ENABLE_VIDEO
      enable_video=1;
 #endif
@@ -521,8 +520,6 @@ void Exiv2::dumpLibraryInfo(std::ostream& os,const exv_grep_keys_t& keys)
             output(os,keys,"library",*lib);
     }
 
-    output(os,keys,"have_strerror_r"   ,have_strerror_r  );
-    output(os,keys,"have_gmtime_r"     ,have_gmtime_r    );
     output(os,keys,"have_inttypes"     ,have_inttypes    );
     output(os,keys,"have_libintl"      ,have_libintl     );
     output(os,keys,"have_lensdata"     ,have_lensdata    );
@@ -550,6 +547,7 @@ void Exiv2::dumpLibraryInfo(std::ostream& os,const exv_grep_keys_t& keys)
     output(os,keys,"have_sys_types"    ,have_sys_types   );
     output(os,keys,"have_unistd"       ,have_unistd      );
     output(os,keys,"have_unicode_path" ,have_unicode_path);
+    output(os,keys,"enable_bmff"       ,enable_bmff      );
     output(os,keys,"enable_video"      ,enable_video     );
     output(os,keys,"enable_webready"   ,enable_webready  );
     output(os,keys,"enable_nls"        ,enable_nls       );

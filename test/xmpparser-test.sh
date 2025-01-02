@@ -2,6 +2,10 @@
 # XMP parser test driver
 
 source ./functions.source
+if [ "$PLATFORM" == "SunOS" ]; then
+    echo "platform $PLATFORM Skip $0"
+    exit 0 # SunOS diff complains about newline stuff
+fi
 
 ##
 # Check if xmpparser-test exists
@@ -37,11 +41,7 @@ fi
 
 ) > $results 2>&1
 
-# ----------------------------------------------------------------------
-# Evaluate results
-cat $results | tr -d $'\r' > $results-stripped
-mv                           $results-stripped $results
-reportTest                                     $results $good
+reportTest
 
 # That's all Folks!
 ##
